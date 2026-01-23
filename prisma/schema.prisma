@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model WorkflowTemplate {
+  id             String   @id @default(uuid())
+  name           String   @db.VarChar(100)
+  modelType      String   @map("model_type") @db.VarChar(10)
+  baseWorkflow   Json     @map("base_workflow")
+  editableParams Json     @map("editable_params")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  histories TestHistory[]
+
+  @@map("workflow_templates")
+}
+
+model TestHistory {
+  id              String    @id @default(uuid())
+  workflowId      String?   @map("workflow_id")
+  params          Json
+  inputImageUrl   String?   @map("input_image_url") @db.VarChar(500)
+  outputImageUrls Json?     @map("output_image_urls")
+  status          String    @default("pending") @db.VarChar(20)
+  jobId           String?   @map("job_id") @db.VarChar(100)
+  errorMessage    String?   @map("error_message") @db.Text
+  executedAt      DateTime  @default(now()) @map("executed_at")
+  completedAt     DateTime? @map("completed_at")
+
+  workflow WorkflowTemplate? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([executedAt])
+  @@map("test_history")
+}
