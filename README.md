@@ -42,18 +42,15 @@ ComfyUI 워크플로우 기반 텍스타일 패턴 이미지 생성 관리 시�
 
 ### 환경 변수 설정
 
-`.env` 파일을 생성하고 다음 변수를 설정하세요:
+환경 변수와 AWS PEM 키는 **Tips 프로젝트**에 저장되어 있습니다.
 
-```env
-# Database
-DATABASE_URL="mysql://user:password@localhost:3306/image_generator"
+1. Tips 프로젝트에서 `.env` 파일과 AWS PEM 키를 다운로드
+2. 프로젝트 루트에 `.env` 파일 복사
+3. AWS PEM 키는 `~/.ssh/` 디렉토리에 저장
 
-# AWS
-AWS_REGION="ap-northeast-2"
-AWS_ACCESS_KEY_ID="your-access-key"
-AWS_SECRET_ACCESS_KEY="your-secret-key"
-AWS_S3_BUCKET="your-bucket-name"
-AWS_SQS_QUEUE_URL="your-sqs-queue-url"
+```bash
+# Tips에서 환경 변수 파일 다운로드 후 프로젝트 루트에 복사
+cp /path/to/tips/.env .env
 ```
 
 ### 설치 및 실행
