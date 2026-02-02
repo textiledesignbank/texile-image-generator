@@ -25,16 +25,18 @@ export async function POST(request: NextRequest) {
 
     // 입력 이미지 S3 업로드 (있는 경우)
     let inputImageS3Key: string | undefined;
+    console.log(`[Generate] inputImageBase64 exists: ${!!inputImageBase64}, length: ${inputImageBase64?.length || 0}`);
     if (inputImageBase64) {
       inputImageS3Key = await uploadBase64Image(
         inputImageBase64,
         `input-${Date.now()}.png`
       );
+      console.log(`[Generate] Uploaded to S3: ${inputImageS3Key}`);
     }
 
     // 파라미터 적용
-    const baseWorkflow = workflow.baseWorkflow as ComfyUIWorkflow;
-    const editableParams = workflow.editableParams as ParamConfig[];
+    const baseWorkflow = workflow.baseWorkflow as unknown as ComfyUIWorkflow;
+    const editableParams = workflow.editableParams as unknown as ParamConfig[];
 
     const processedWorkflow = applyParamsToWorkflow(baseWorkflow, editableParams, params);
     // Note: Base64 이미지는 SQS 메시지 크기 제한(256KB) 때문에 워크플로우에 주입하지 않음
@@ -51,12 +53,14 @@ export async function POST(request: NextRequest) {
     });
 
     // SQS로 작업 전송
+    console.log(`[Generate] Sending to SQS with inputImageS3Key: ${inputImageS3Key || 'NONE'}`);
     const jobId = await sendGenerateJob(
       history.id,
       processedWorkflow,
       params,
       inputImageS3Key
     );
+    console.log(`[Generate] Job sent: ${jobId}`);
 
     // jobId 업데이트
     await prisma.testHistory.update({
