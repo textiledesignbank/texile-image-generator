@@ -27,8 +27,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       data: {
         name: name || `${source.name}_copy`,
         modelType: source.modelType,
-        baseWorkflow: source.baseWorkflow,
-        editableParams: source.editableParams,
+        baseWorkflow: source.baseWorkflow as object,
+        editableParams: source.editableParams as object,
       },
     });
 

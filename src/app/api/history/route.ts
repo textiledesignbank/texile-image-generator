@@ -48,11 +48,11 @@ export async function GET(request: NextRequest) {
 
         if (outputImageUrls && outputImageUrls.length > 0) {
           const needsPresigning = outputImageUrls.some(
-            (url) => !url.startsWith("http")
+            (url) => !url.startsWith("http"),
           );
           if (needsPresigning) {
             outputImageUrls = await getPresignedUrls(
-              outputImageUrls.filter((url) => !url.startsWith("http"))
+              outputImageUrls.filter((url) => !url.startsWith("http")),
             );
           }
         }
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           inputImageUrl,
           outputImageUrls,
         };
-      })
+      }),
     );
 
     return NextResponse.json({
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching history:", error);
     return NextResponse.json(
       { error: "Failed to fetch history" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

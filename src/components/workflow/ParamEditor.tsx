@@ -56,7 +56,7 @@ export function ParamEditor({ params, values, onChange }: ParamEditorProps) {
                       </Label>
                       {param.type === "number" && (
                         <span className="text-sm font-mono text-muted-foreground">
-                          {typeof value === "number" ? value.toFixed(2) : value}
+                          {typeof value === "number" ? value.toFixed(2) : String(value)}
                         </span>
                       )}
                     </div>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ParamEditor } from "@/components/workflow/ParamEditor";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, RefreshCw } from "lucide-react";
 import type { WorkflowTemplate, ParamConfig } from "@/types";
 
 interface PageProps {
@@ -22,6 +22,7 @@ export default function WorkflowDetailPage({ params }: PageProps) {
   const [workflow, setWorkflow] = useState<WorkflowTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [name, setName] = useState("");
   const [editableParams, setEditableParams] = useState<ParamConfig[]>([]);
 
@@ -68,6 +69,28 @@ export default function WorkflowDetailPage({ params }: PageProps) {
       updated[index] = { ...updated[index], [field]: value };
       return updated;
     });
+  };
+
+  const handleRefreshParams = async () => {
+    setRefreshing(true);
+    try {
+      const res = await fetch(`/api/workflows/${id}/refresh-params`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        // 워크플로우 다시 불러오기
+        const workflowRes = await fetch(`/api/workflows/${id}`);
+        if (workflowRes.ok) {
+          const data = await workflowRes.json();
+          setWorkflow(data);
+          setEditableParams(data.editableParams);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh params:", error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   if (loading) {
@@ -152,8 +175,17 @@ export default function WorkflowDetailPage({ params }: PageProps) {
 
             <TabsContent value="params" className="mt-4">
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>조절 가능한 파라미터</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshParams}
+                    disabled={refreshing}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                    {refreshing ? "재추출 중..." : "파라미터 재추출"}
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, RefreshCw } from "lucide-react";
-import type { TestHistory } from "@/types";
+import type { TestHistory, ParamConfig } from "@/types";
+import { CATEGORY_DISPLAY_NAMES } from "@/lib/workflow-parser";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -23,6 +24,7 @@ export default function HistoryDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
   const [history, setHistory] = useState<TestHistory | null>(null);
+  const [editableParams, setEditableParams] = useState<ParamConfig[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchHistory = async () => {
@@ -31,12 +33,61 @@ export default function HistoryDetailPage({ params }: PageProps) {
       if (res.ok) {
         const data = await res.json();
         setHistory(data);
+
+        // 워크플로우의 editableParams 가져오기
+        if (data.workflow?.editableParams) {
+          setEditableParams(data.workflow.editableParams as ParamConfig[]);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch history:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // 파라미터 키에서 표시 이름 가져오기
+  const getParamLabel = (key: string): string => {
+    const param = editableParams.find(
+      (p) => `${p.nodeId}.${p.paramPath}` === key
+    );
+    return param?.displayNameKo || key.split(".").pop() || key;
+  };
+
+  // 파라미터 값 포맷팅
+  const getParamDisplayValue = (key: string, value: unknown): string => {
+    if (typeof value === "number") {
+      if (key.includes("seed")) return String(value);
+      return Number.isInteger(value) ? String(value) : value.toFixed(2);
+    }
+    return String(value);
+  };
+
+  // 카테고리별로 파라미터 그룹화
+  const getGroupedParams = () => {
+    const params = history?.params as Record<string, unknown> | null;
+    if (!params) return {};
+
+    const grouped: Record<string, { key: string; value: unknown; label: string }[]> = {};
+
+    Object.entries(params).forEach(([key, value]) => {
+      const paramConfig = editableParams.find(
+        (p) => `${p.nodeId}.${p.paramPath}` === key
+      );
+      const category = paramConfig?.category || "other";
+
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+
+      grouped[category].push({
+        key,
+        value,
+        label: getParamLabel(key),
+      });
+    });
+
+    return grouped;
   };
 
   useEffect(() => {
@@ -88,17 +139,22 @@ export default function HistoryDetailPage({ params }: PageProps) {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>입력 이미지</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-500" />
+              입력 이미지
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {history.inputImageUrl ? (
-              <img
-                src={history.inputImageUrl}
-                alt="Input"
-                className="w-full max-h-96 object-contain rounded-lg border"
-              />
+              <div className="aspect-square w-full max-w-md mx-auto overflow-hidden rounded-lg border border-blue-200">
+                <img
+                  src={history.inputImageUrl}
+                  alt="Input"
+                  className="w-full h-full object-contain bg-muted/30"
+                />
+              </div>
             ) : (
-              <div className="h-48 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+              <div className="aspect-square w-full max-w-md mx-auto bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
                 입력 이미지 없음
               </div>
             )}
@@ -107,26 +163,37 @@ export default function HistoryDetailPage({ params }: PageProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>출력 이미지</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-green-500" />
+              출력 이미지
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {history.status === "processing" || history.status === "pending" ? (
-              <div className="h-48 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-                처리 중...
+              <div className="aspect-square w-full max-w-md mx-auto bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                <div className="flex flex-col items-center gap-2">
+                  <RefreshCw className="h-6 w-6 animate-spin" />
+                  <span>처리 중...</span>
+                </div>
               </div>
             ) : history.outputImageUrls && history.outputImageUrls.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {history.outputImageUrls.map((url, idx) => (
-                  <img
+                  <div
                     key={idx}
-                    src={url}
-                    alt={`Output ${idx + 1}`}
-                    className="w-full h-40 object-cover rounded-lg border"
-                  />
+                    className="aspect-square overflow-hidden rounded-lg border border-green-200 cursor-pointer hover:ring-2 ring-green-500"
+                    onClick={() => window.open(url, '_blank')}
+                  >
+                    <img
+                      src={url}
+                      alt={`Output ${idx + 1}`}
+                      className="w-full h-full object-contain bg-muted/30"
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
-              <div className="h-48 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+              <div className="aspect-square w-full max-w-md mx-auto bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
                 {history.status === "failed" ? "생성 실패" : "출력 이미지 없음"}
               </div>
             )}
@@ -135,12 +202,39 @@ export default function HistoryDetailPage({ params }: PageProps) {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>파라미터</CardTitle>
+            <CardTitle>사용된 파라미터</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-64 text-sm">
-              {JSON.stringify(history.params, null, 2)}
-            </pre>
+            {editableParams.length > 0 ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.entries(getGroupedParams()).map(([category, params]) => (
+                  <div key={category} className="space-y-3">
+                    <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+                      {CATEGORY_DISPLAY_NAMES[category] || category}
+                    </h4>
+                    <div className="space-y-2">
+                      {params.map(({ key, value, label }) => (
+                        <div
+                          key={key}
+                          className="flex justify-between items-center p-2 rounded-lg bg-muted/30"
+                        >
+                          <span className="text-sm text-muted-foreground truncate flex-1 mr-2">
+                            {label}
+                          </span>
+                          <span className="font-mono text-sm font-medium">
+                            {getParamDisplayValue(key, value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-64 text-sm">
+                {JSON.stringify(history.params, null, 2)}
+              </pre>
+            )}
           </CardContent>
         </Card>
 

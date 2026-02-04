@@ -176,6 +176,23 @@ export function extractEditableParams(workflow: ComfyUIWorkflow): ParamConfig[] 
         defaultValue: node.inputs.sampler_name as string,
       }
     );
+
+    // denoise 파라미터 (있는 경우에만 추가)
+    if ("denoise" in node.inputs) {
+      params.push({
+        nodeId,
+        paramPath: "inputs.denoise",
+        displayName: "Denoise",
+        displayNameKo: "디노이즈",
+        description: "원본 이미지 변형 정도. 낮으면 원본 유지, 높으면 많이 변형해요. (권장: 0.5-0.8)",
+        type: "number",
+        category: "sampling",
+        min: 0,
+        max: 1,
+        step: 0.05,
+        defaultValue: (node.inputs.denoise as number) ?? 1.0,
+      });
+    }
   }
 
   // IPAdapter 파라미터
