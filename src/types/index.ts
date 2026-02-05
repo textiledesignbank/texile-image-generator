@@ -10,7 +10,7 @@ export interface ParamConfig {
   paramPath: string;
   displayName: string;
   displayNameKo: string;
-  description: string; // 파라미터 설명 (디자이너용)
+  description: string;
   type: ParamType;
   category: "sampling" | "ipadapter" | "controlnet" | "clip" | "other";
   min?: number;
@@ -18,17 +18,6 @@ export interface ParamConfig {
   step?: number;
   options?: string[];
   defaultValue: number | string;
-}
-
-// 워크플로우 템플릿
-export interface WorkflowTemplate {
-  id: string;
-  name: string;
-  modelType: ModelType;
-  baseWorkflow: ComfyUIWorkflow;
-  editableParams: ParamConfig[];
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 // ComfyUI 워크플로우 노드
@@ -43,23 +32,93 @@ export interface ComfyUINode {
 // ComfyUI 워크플로우
 export type ComfyUIWorkflow = Record<string, ComfyUINode>;
 
+// ==================== 새로운 Project 기반 구조 ====================
+
+// 프로젝트
+export interface Project {
+  id: string;
+  name: string;
+
+  // SDXL 모델 설정
+  sdxlWorkflow: ComfyUIWorkflow | null;
+  sdxlParams: ParamConfig[] | null;
+
+  // SD1.5 모델 설정
+  sd15Workflow: ComfyUIWorkflow | null;
+  sd15Params: ParamConfig[] | null;
+
+  createdAt: Date;
+  updatedAt: Date;
+
+  // 관계
+  histories?: TestHistory[];
+  _count?: {
+    histories: number;
+  };
+}
+
 // 테스트 히스토리
 export interface TestHistory {
   id: string;
-  workflowId: string | null;
+  projectId: string;
+  modelType: ModelType;
   params: Record<string, unknown>;
   inputImageUrl: string | null;
   outputImageUrls: string[] | null;
   status: JobStatus;
   jobId: string | null;
   errorMessage: string | null;
+  isSelected: boolean;
   executedAt: Date;
   completedAt: Date | null;
-  workflow?: WorkflowTemplate | null;
+
+  // 관계
+  project?: Project | null;
 }
 
 // 작업 상태
 export type JobStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
+
+// ==================== API 요청/응답 타입 ====================
+
+// 프로젝트 생성 요청
+export interface CreateProjectRequest {
+  name: string;
+  sdxlWorkflow?: ComfyUIWorkflow;
+  sdxlParams?: ParamConfig[];
+  sd15Workflow?: ComfyUIWorkflow;
+  sd15Params?: ParamConfig[];
+}
+
+// 프로젝트 수정 요청
+export interface UpdateProjectRequest {
+  name?: string;
+  sdxlWorkflow?: ComfyUIWorkflow;
+  sdxlParams?: ParamConfig[];
+  sd15Workflow?: ComfyUIWorkflow;
+  sd15Params?: ParamConfig[];
+}
+
+// 이미지 생성 요청
+export interface GenerateRequest {
+  projectId: string;
+  modelType: ModelType;
+  params: Record<string, unknown>;
+  inputImageBase64?: string;
+}
+
+// 이미지 생성 응답
+export interface GenerateResponse {
+  historyId: string;
+  jobId: string;
+  status: JobStatus;
+}
+
+// 히스토리 선택 요청
+export interface SelectHistoryRequest {
+  historyId: string;
+  isSelected: boolean;
+}
 
 // SQS 메시지 포맷
 export interface SQSJobMessage {
@@ -68,33 +127,6 @@ export interface SQSJobMessage {
   workflow: ComfyUIWorkflow;
   inputImageS3Key?: string;
   params: Record<string, unknown>;
-}
-
-// API 요청/응답 타입
-export interface CreateWorkflowRequest {
-  name: string;
-  modelType: ModelType;
-  baseWorkflow: ComfyUIWorkflow;
-  editableParams: ParamConfig[];
-  sourceTemplateId?: string; // 복제 시 원본 ID
-}
-
-export interface UpdateWorkflowRequest {
-  name?: string;
-  baseWorkflow?: ComfyUIWorkflow;
-  editableParams?: ParamConfig[];
-}
-
-export interface GenerateRequest {
-  workflowId: string;
-  params: Record<string, unknown>;
-  inputImageBase64?: string;
-}
-
-export interface GenerateResponse {
-  historyId: string;
-  jobId: string;
-  status: JobStatus;
 }
 
 // 리스트 응답
@@ -113,7 +145,18 @@ export interface ParamGroup {
   params: ParamConfig[];
 }
 
-// 워크플로우 + 히스토리 카운트
+// ==================== 레거시 (마이그레이션용, 추후 삭제) ====================
+
+export interface WorkflowTemplate {
+  id: string;
+  name: string;
+  modelType: ModelType;
+  baseWorkflow: ComfyUIWorkflow;
+  editableParams: ParamConfig[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface WorkflowWithCount extends WorkflowTemplate {
   _count?: {
     histories: number;

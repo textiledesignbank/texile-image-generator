@@ -7,13 +7,15 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1");
-    const pageSize = parseInt(searchParams.get("pageSize") || "20");
-    const workflowId = searchParams.get("workflowId");
+    const pageSize = parseInt(searchParams.get("pageSize") || "50");
+    const projectId = searchParams.get("projectId");
     const status = searchParams.get("status");
+    const modelType = searchParams.get("modelType");
 
     const where = {
-      ...(workflowId && { workflowId }),
+      ...(projectId && { projectId }),
       ...(status && { status }),
+      ...(modelType && { modelType }),
     };
 
     const [data, total] = await Promise.all([
@@ -23,11 +25,10 @@ export async function GET(request: NextRequest) {
         take: pageSize,
         orderBy: { executedAt: "desc" },
         include: {
-          workflow: {
+          project: {
             select: {
               id: true,
               name: true,
-              modelType: true,
             },
           },
         },

@@ -28,16 +28,10 @@ export function Header() {
           </a>
           <div className="flex items-center gap-4">
             <a
-              href="/workflows"
+              href="/projects"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
-              워크플로우
-            </a>
-            <a
-              href="/history"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              히스토리
+              프로젝트
             </a>
             <Button
               variant="ghost"

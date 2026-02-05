@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const history = await prisma.testHistory.findUnique({
       where: { id },
       include: {
-        workflow: true,
+        project: true,
       },
     });
 
@@ -49,6 +49,50 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     console.error("Error fetching history:", error);
     return NextResponse.json(
       { error: "Failed to fetch history" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/history/[id] - 히스토리 업데이트 (최종 선택 등)
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { isSelected } = body;
+
+    const history = await prisma.testHistory.findUnique({
+      where: { id },
+    });
+
+    if (!history) {
+      return NextResponse.json(
+        { error: "History not found" },
+        { status: 404 }
+      );
+    }
+
+    // isSelected가 true로 설정되면, 같은 프로젝트의 다른 히스토리는 false로
+    if (isSelected === true) {
+      await prisma.testHistory.updateMany({
+        where: {
+          projectId: history.projectId,
+          id: { not: id },
+        },
+        data: { isSelected: false },
+      });
+    }
+
+    const updated = await prisma.testHistory.update({
+      where: { id },
+      data: { isSelected },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating history:", error);
+    return NextResponse.json(
+      { error: "Failed to update history" },
       { status: 500 }
     );
   }
