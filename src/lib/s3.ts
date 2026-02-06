@@ -2,7 +2,6 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
-  DeleteObjectCommand,
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -58,27 +57,12 @@ export async function getPresignedUrl(
   return await getSignedUrl(s3Client, command, { expiresIn });
 }
 
-// S3 Public URL 생성
-export function getPublicUrl(key: string): string {
-  return `https://${bucketName}.s3.${process.env.AWS_REGION || "ap-northeast-2"}.amazonaws.com/${key}`;
-}
-
 // 여러 이미지 URL 생성
 export async function getPresignedUrls(
   keys: string[],
   expiresIn: number = 3600
 ): Promise<string[]> {
   return Promise.all(keys.map((key) => getPresignedUrl(key, expiresIn)));
-}
-
-// S3 객체 삭제
-export async function deleteObject(key: string): Promise<void> {
-  await s3Client.send(
-    new DeleteObjectCommand({
-      Bucket: bucketName,
-      Key: key,
-    })
-  );
 }
 
 // 여러 S3 객체 삭제

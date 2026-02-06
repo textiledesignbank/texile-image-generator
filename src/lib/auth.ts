@@ -46,12 +46,6 @@ export async function removeAuthCookie() {
   cookieStore.delete(AUTH_COOKIE_NAME);
 }
 
-export async function getCurrentUser(): Promise<{ username: string } | null> {
-  const token = await getAuthCookie();
-  if (!token) return null;
-  return verifyToken(token);
-}
-
 export function validateCredentials(username: string, password: string): boolean {
   const adminUsername = process.env.ADMIN_USERNAME;
   const adminPassword = process.env.ADMIN_PASSWORD;

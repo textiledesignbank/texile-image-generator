@@ -114,12 +114,6 @@ export interface GenerateResponse {
   status: JobStatus;
 }
 
-// 히스토리 선택 요청
-export interface SelectHistoryRequest {
-  historyId: string;
-  isSelected: boolean;
-}
-
 // SQS 메시지 포맷
 export interface SQSJobMessage {
   jobId: string;
@@ -138,27 +132,3 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// 파라미터 카테고리별 그룹
-export interface ParamGroup {
-  category: ParamConfig["category"];
-  displayName: string;
-  params: ParamConfig[];
-}
-
-// ==================== 레거시 (마이그레이션용, 추후 삭제) ====================
-
-export interface WorkflowTemplate {
-  id: string;
-  name: string;
-  modelType: ModelType;
-  baseWorkflow: ComfyUIWorkflow;
-  editableParams: ParamConfig[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WorkflowWithCount extends WorkflowTemplate {
-  _count?: {
-    histories: number;
-  };
-}

@@ -51,15 +51,3 @@ model TestHistory {
   @@map("test_history")
 }
 
-// 기존 WorkflowTemplate (레거시, 마이그레이션용 - 나중에 삭제)
-model WorkflowTemplate {
-  id             String   @id @default(uuid())
-  name           String   @db.VarChar(100)
-  modelType      String   @map("model_type") @db.VarChar(10)
-  baseWorkflow   Json     @map("base_workflow")
-  editableParams Json     @map("editable_params")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  @@map("workflow_templates")
-}
