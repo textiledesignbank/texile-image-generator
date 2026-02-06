@@ -1,6 +1,7 @@
 # TDB Image Generator
 
 디자이너를 위한 이미지 생성 테스트 및 최적 파라미터 탐색 도구
+Vercel 에 배포되어있습니다.
 
 ## 개요
 
@@ -44,7 +45,7 @@ ComfyUI 워크플로우 기반 이미지 생성 시스템입니다. 프로젝트
 
 ### 환경 변수 설정
 
-환경 변수는 **Tips 프로젝트**를 참고하세요.
+환경 변수는 **Tips 프로젝트/김우혁/환경변수**를 참고하세요.
 
 ### 설치 및 실행
 
@@ -78,8 +79,6 @@ npm run db:migrate
 npm run build
 npm run start
 ```
-
-Vercel 배포 시 `postinstall` 스크립트가 자동으로 Prisma 클라이언트를 생성합니다.
 
 ## 프로젝트 구조
 
