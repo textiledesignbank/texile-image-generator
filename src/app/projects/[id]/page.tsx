@@ -10,12 +10,13 @@ import {
   Upload,
   Play,
   Loader2,
-  Check,
+
   X,
   Settings,
   History,
   Image as ImageIcon,
   GitCompare,
+  AlertTriangle,
 } from "lucide-react";
 import { ParamEditor } from "@/components/workflow/ParamEditor";
 import { ParamDisplay } from "@/components/workflow/ParamDisplay";
@@ -44,14 +45,16 @@ export default function ProjectPage() {
   const [histories, setHistories] = useState<TestHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // 비교 모드
-  const [compareHistory, setCompareHistory] = useState<TestHistory | null>(null);
+  // Step 2: 생성 결과 보기 - viewingHistoryId (null이면 최신 결과)
+  const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
+
+  // Step 5: 자유 비교 모드
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareLeftId, setCompareLeftId] = useState<string | null>(null);
+  const [compareRightId, setCompareRightId] = useState<string | null>(null);
 
   // 히스토리 필터
   const [historyFilter, setHistoryFilter] = useState<"all" | "sdxl" | "sd15">("all");
-
-  // 선택된 히스토리 (파라미터 보기용)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -123,8 +126,9 @@ export default function ProjectPage() {
         }
       }
     }
-  }, [histories.length]); // histories.length가 변경될 때만 실행 (최초 로드 시)
+  }, [histories.length]);
 
+  // Step 4: 폴링 - 생성 완료 시 자동 파라미터 반영
   useEffect(() => {
     if (!currentHistoryId) return;
     const interval = setInterval(async () => {
@@ -136,6 +140,17 @@ export default function ProjectPage() {
             setGenerating(false);
             setCurrentHistoryId(null);
             fetchHistories();
+
+            // Step 4: 생성 완료 시 자동으로 파라미터 반영
+            if (history.status === "completed") {
+              if (history.params) {
+                setParamValues(history.params as Record<string, unknown>);
+              }
+              if (history.modelType) {
+                setModelType(history.modelType);
+              }
+              setViewingHistoryId(null); // 최신 결과로 리셋
+            }
           }
         }
       } catch (error) {
@@ -190,18 +205,6 @@ export default function ProjectPage() {
     }
   };
 
-  const handleSelectHistory = async (historyId: string) => {
-    try {
-      await fetch(`/api/history/${historyId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isSelected: true }),
-      });
-      fetchHistories();
-    } catch (error) {
-      console.error("Failed to select history:", error);
-    }
-  };
 
   const handleApplyHistoryParams = (history: TestHistory) => {
     if (history.params) {
@@ -212,8 +215,38 @@ export default function ProjectPage() {
     }
   };
 
+  // Step 5: 비교 모드 선택 핸들러
+  const handleCompareSelect = (historyId: string) => {
+    if (!compareLeftId) {
+      setCompareLeftId(historyId);
+    } else if (!compareRightId) {
+      if (historyId === compareLeftId) return; // 같은 항목 선택 방지
+      setCompareRightId(historyId);
+    } else {
+      // 이미 둘 다 선택된 경우 리셋하고 새로 시작
+      setCompareLeftId(historyId);
+      setCompareRightId(null);
+    }
+  };
+
+  const exitCompareMode = () => {
+    setCompareMode(false);
+    setCompareLeftId(null);
+    setCompareRightId(null);
+  };
+
+  // 파생 값들
   const currentParams = modelType === "sdxl" ? project?.sdxlParams : project?.sd15Params;
-  const latestHistory = histories.length > 0 && histories[0].status === "completed" ? histories[0] : null;
+  const latestHistory = histories.find(h => h.status === "completed") || null;
+  const viewingHistory = viewingHistoryId
+    ? histories.find(h => h.id === viewingHistoryId) || null
+    : latestHistory;
+  const isViewingLatest = !viewingHistoryId || viewingHistoryId === latestHistory?.id;
+
+  // 비교 모드 히스토리
+  const compareLeft = compareLeftId ? histories.find(h => h.id === compareLeftId) || null : null;
+  const compareRight = compareRightId ? histories.find(h => h.id === compareRightId) || null : null;
+  const compareModelMismatch = compareLeft && compareRight && compareLeft.modelType !== compareRight.modelType;
 
   if (loading) {
     return <div className="container mx-auto px-4 py-8 text-center">로딩 중...</div>;
@@ -328,17 +361,34 @@ export default function ProjectPage() {
 
           {/* 오른쪽: 결과 */}
           <div className="space-y-4">
-            {/* 생성 버튼 */}
-            <Button className="w-full" size="lg" onClick={handleGenerate} disabled={generating}>
-              {generating ? (
-                <><Loader2 className="h-5 w-5 mr-2 animate-spin" />생성 중...</>
-              ) : (
-                <><Play className="h-5 w-5 mr-2" />이미지 생성</>
-              )}
-            </Button>
+            {/* 생성 버튼 + 비교 모드 토글 */}
+            <div className="flex gap-2">
+              <Button className="flex-1" size="lg" onClick={handleGenerate} disabled={generating || compareMode}>
+                {generating ? (
+                  <><Loader2 className="h-5 w-5 mr-2 animate-spin" />생성 중...</>
+                ) : (
+                  <><Play className="h-5 w-5 mr-2" />이미지 생성</>
+                )}
+              </Button>
+              <Button
+                variant={compareMode ? "default" : "outline"}
+                size="lg"
+                onClick={() => {
+                  if (compareMode) {
+                    exitCompareMode();
+                  } else {
+                    setCompareMode(true);
+                  }
+                }}
+                disabled={generating}
+              >
+                <GitCompare className="h-5 w-5 mr-2" />
+                비교
+              </Button>
+            </div>
 
-            {/* 비교 모드 활성화 시 */}
-            {compareHistory && (
+            {/* Step 5: 비교 모드 */}
+            {compareMode && (
               <Card className="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm flex items-center justify-between">
@@ -346,57 +396,103 @@ export default function ProjectPage() {
                       <GitCompare className="h-4 w-4" />
                       비교 모드
                     </span>
-                    <Button variant="ghost" size="sm" onClick={() => setCompareHistory(null)}>
+                    <Button variant="ghost" size="sm" onClick={exitCompareMode}>
                       <X className="h-4 w-4" />
                     </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {/* 이미지 비교 */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1 text-center">최신 결과</p>
-                      {latestHistory?.outputImageUrls && (
-                        <img
-                          src={(latestHistory.outputImageUrls as string[])[0]}
-                          alt="Latest"
-                          className="w-full rounded-md"
-                        />
+                  {!compareLeftId && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      아래 히스토리에서 첫 번째 항목을 선택하세요
+                    </p>
+                  )}
+                  {compareLeftId && !compareRightId && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      두 번째 항목을 선택하세요
+                    </p>
+                  )}
+                  {compareLeft && compareRight && (
+                    <div className="space-y-3">
+                      {/* 모델 불일치 경고 */}
+                      {compareModelMismatch && (
+                        <div className="flex items-center gap-2 p-2 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs">
+                          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                          서로 다른 모델 타입의 결과를 비교하고 있습니다
+                        </div>
                       )}
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1 text-center">비교 대상</p>
-                      {compareHistory.outputImageUrls && (
-                        <img
-                          src={(compareHistory.outputImageUrls as string[])[0]}
-                          alt="Compare"
-                          className="w-full rounded-md"
-                        />
-                      )}
-                    </div>
-                  </div>
-                  {/* 파라미터 비교 */}
-                  {currentParams && latestHistory?.params && compareHistory.params && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">파라미터 차이 (노란색 = 다름)</p>
-                      <ParamDisplay
-                        params={currentParams}
-                        values={latestHistory.params as Record<string, unknown>}
-                        compareValues={compareHistory.params as Record<string, unknown>}
-                      />
+                      {/* 이미지 비교 */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1 text-center">
+                            Left: {new Date(compareLeft.executedAt).toLocaleString("ko-KR")}
+                          </p>
+                          {compareLeft.outputImageUrls && (
+                            <img
+                              src={(compareLeft.outputImageUrls as string[])[0]}
+                              alt="Left"
+                              className="w-full rounded-md"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1 text-center">
+                            Right: {new Date(compareRight.executedAt).toLocaleString("ko-KR")}
+                          </p>
+                          {compareRight.outputImageUrls && (
+                            <img
+                              src={(compareRight.outputImageUrls as string[])[0]}
+                              alt="Right"
+                              className="w-full rounded-md"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      {/* 파라미터 비교 */}
+                      {compareLeft.params && compareRight.params && (() => {
+                        const displayParams = compareLeft.modelType === "sdxl" ? project?.sdxlParams : project?.sd15Params;
+                        return displayParams ? (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-2">파라미터 차이 (노란색 = 다름)</p>
+                            <ParamDisplay
+                              params={displayParams}
+                              values={compareLeft.params as Record<string, unknown>}
+                              compareValues={compareRight.params as Record<string, unknown>}
+                            />
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {/* 생성 결과 */}
-            {!compareHistory && (
+            {/* Step 2: 생성 결과 - 비교 모드가 아닐 때만 */}
+            {!compareMode && (
               <Card>
                 <CardHeader className="py-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    생성 결과
+                  <CardTitle className="text-sm flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" />
+                      생성 결과
+                      {!isViewingLatest && viewingHistory && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-normal">
+                          {new Date(viewingHistory.executedAt).toLocaleString("ko-KR")} 기록
+                        </span>
+                      )}
+                    </span>
+                    {/* Step 3: 적용 버튼 - 최신이 아닐 때만 표시 */}
+                    {viewingHistory && viewingHistory.status === "completed" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2"
+                        onClick={() => handleApplyHistoryParams(viewingHistory)}
+                      >
+                        파라미터 적용
+                      </Button>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -407,19 +503,43 @@ export default function ProjectPage() {
                         <p className="text-sm text-muted-foreground">생성 중...</p>
                       </div>
                     </div>
-                  ) : latestHistory?.outputImageUrls ? (
+                  ) : viewingHistory?.outputImageUrls ? (
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        {(latestHistory.outputImageUrls as string[]).map((url, idx) => (
-                          <img key={idx} src={url} alt={`Output ${idx + 1}`} className="w-full rounded-md" />
-                        ))}
-                      </div>
-                      {currentParams && latestHistory.params && (
-                        <div className="pt-3 border-t">
-                          <p className="text-xs text-muted-foreground mb-2">사용된 파라미터</p>
-                          <ParamDisplay params={currentParams} values={latestHistory.params as Record<string, unknown>} />
+                      {viewingHistory.inputImageUrl ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1 text-center">Input</p>
+                            <img
+                              src={viewingHistory.inputImageUrl}
+                              alt="Input"
+                              className="w-full rounded-md bg-muted"
+                            />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1 text-center">Output</p>
+                            <img
+                              src={(viewingHistory.outputImageUrls as string[])[0]}
+                              alt="Output"
+                              className="w-full rounded-md"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {(viewingHistory.outputImageUrls as string[]).map((url, idx) => (
+                            <img key={idx} src={url} alt={`Output ${idx + 1}`} className="w-full rounded-md" />
+                          ))}
                         </div>
                       )}
+                      {viewingHistory.params && (() => {
+                        const displayParams = viewingHistory.modelType === "sdxl" ? project?.sdxlParams : project?.sd15Params;
+                        return displayParams ? (
+                          <div className="pt-3 border-t">
+                            <p className="text-xs text-muted-foreground mb-2">사용된 파라미터</p>
+                            <ParamDisplay params={displayParams} values={viewingHistory.params as Record<string, unknown>} />
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   ) : (
                     <div className="flex items-center justify-center h-48 bg-muted rounded-md">
@@ -478,36 +598,43 @@ export default function ProjectPage() {
                     {histories
                       .filter((h) => historyFilter === "all" || h.modelType === historyFilter)
                       .sort((a, b) => {
-                        // 현재(최신)가 첫번째
+                        // 생성중(processing/pending)이 최상단
+                        const aProcessing = a.status === "processing" || a.status === "pending";
+                        const bProcessing = b.status === "processing" || b.status === "pending";
+                        if (aProcessing && !bProcessing) return -1;
+                        if (!aProcessing && bProcessing) return 1;
+                        // 최신 완료가 그 다음
                         if (a.id === latestHistory?.id) return -1;
                         if (b.id === latestHistory?.id) return 1;
-                        // 최종선택이 두번째
-                        if (a.isSelected && !b.isSelected) return -1;
-                        if (!a.isSelected && b.isSelected) return 1;
                         // 나머지는 시간순
                         return new Date(b.executedAt).getTime() - new Date(a.executedAt).getTime();
                       })
                       .map((history) => {
-                      const historyParams = history.modelType === "sdxl" ? project?.sdxlParams : project?.sd15Params;
-                      const isComparing = compareHistory?.id === history.id;
                       const isLatest = latestHistory?.id === history.id;
-                      const isSelected = selectedHistoryId === history.id;
+                      const isViewing = viewingHistoryId === history.id;
+                      const isCompareLeft = compareLeftId === history.id;
+                      const isCompareRight = compareRightId === history.id;
 
                       return (
                         <div
                           key={history.id}
                           className={`p-2 rounded-lg border cursor-pointer transition-colors ${
-                            isLatest
-                              ? "border-primary bg-primary/10"
-                              : isComparing
-                                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
-                                : isSelected
-                                  ? "border-muted-foreground bg-muted/50"
+                            compareMode && (isCompareLeft || isCompareRight)
+                              ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
+                              : isViewing && !compareMode
+                                ? "border-muted-foreground bg-muted/50"
+                                : isLatest && !compareMode
+                                  ? "border-primary bg-primary/10"
                                   : "border-border hover:bg-muted/30"
                           }`}
                           onClick={() => {
-                            if (!isLatest && history.status === "completed") {
-                              setSelectedHistoryId(isSelected ? null : history.id);
+                            if (history.status !== "completed") return;
+                            if (compareMode) {
+                              handleCompareSelect(history.id);
+                            } else {
+                              setViewingHistoryId(
+                                isLatest ? null : (isViewing ? null : history.id)
+                              );
                             }
                           }}
                         >
@@ -542,9 +669,17 @@ export default function ProjectPage() {
                                     현재
                                   </span>
                                 )}
-                                {history.isSelected && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-600 text-white">
-                                    최종선택
+
+
+                                {/* 비교 모드 라벨 */}
+                                {compareMode && isCompareLeft && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-600 text-white">
+                                    Left
+                                  </span>
+                                )}
+                                {compareMode && isCompareRight && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-600 text-white">
+                                    Right
                                   </span>
                                 )}
                               </div>
@@ -552,53 +687,10 @@ export default function ProjectPage() {
                                 {new Date(history.executedAt).toLocaleString("ko-KR")}
                               </p>
 
-                              {/* 버튼들 - 현재가 아닌 완료된 히스토리만 */}
-                              {!isLatest && history.status === "completed" && (
-                                <div className="flex gap-1 mt-1" onClick={(e) => e.stopPropagation()}>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 text-[10px] px-2"
-                                    onClick={() => handleApplyHistoryParams(history)}
-                                  >
-                                    적용
-                                  </Button>
-                                  {latestHistory && latestHistory.modelType === history.modelType && (
-                                    <Button
-                                      variant={isComparing ? "default" : "outline"}
-                                      size="sm"
-                                      className="h-6 text-[10px] px-2"
-                                      onClick={() => setCompareHistory(isComparing ? null : history)}
-                                    >
-                                      <GitCompare className="h-3 w-3 mr-1" />
-                                      비교
-                                    </Button>
-                                  )}
-                                  {!history.isSelected && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-6 text-[10px] px-2 text-green-600 border-green-600 hover:bg-green-50"
-                                      onClick={() => handleSelectHistory(history.id)}
-                                    >
-                                      <Check className="h-3 w-3 mr-1" />
-                                      최종선택
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
+
+
                             </div>
                           </div>
-
-                          {/* 파라미터 상세 - 선택된 히스토리만 표시 */}
-                          {!isLatest && isSelected && history.status === "completed" && historyParams && history.params && (
-                            <div className="mt-2 pt-2 border-t">
-                              <ParamDisplay
-                                params={historyParams}
-                                values={history.params as Record<string, unknown>}
-                              />
-                            </div>
-                          )}
                         </div>
                       );
                     })}
