@@ -28,6 +28,19 @@ model Project {
   @@map("projects")
 }
 
+// 워크플로우 템플릿
+model WorkflowTemplate {
+  id             String   @id @default(uuid())
+  name           String   @db.VarChar(100)
+  modelType      String   @map("model_type") @db.VarChar(10)
+  baseWorkflow   Json     @map("base_workflow")
+  editableParams Json     @map("editable_params")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("workflow_templates")
+}
+
 // 테스트 히스토리
 model TestHistory {
   id              String    @id @default(uuid())

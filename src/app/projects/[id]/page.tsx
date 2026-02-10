@@ -17,9 +17,17 @@ import {
   Image as ImageIcon,
   GitCompare,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { ParamEditor } from "@/components/workflow/ParamEditor";
 import { ParamDisplay } from "@/components/workflow/ParamDisplay";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   Project,
   TestHistory,
@@ -52,6 +60,11 @@ export default function ProjectPage() {
   const [compareMode, setCompareMode] = useState(false);
   const [compareLeftId, setCompareLeftId] = useState<string | null>(null);
   const [compareRightId, setCompareRightId] = useState<string | null>(null);
+
+  // 템플릿 파라미터
+  const [templates, setTemplates] = useState<{ name: string; displayName: string; modelType: string }[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   // 히스토리 필터
   const [historyFilter, setHistoryFilter] = useState<"all" | "sdxl" | "sd15">("all");
@@ -95,6 +108,41 @@ export default function ProjectPage() {
     const paramConfigs = modelType === "sdxl" ? project.sdxlParams : project.sd15Params;
     initParams(paramConfigs);
   }, [modelType, project]);
+
+  // 템플릿 목록 로드 (modelType 변경 시)
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const res = await fetch(`/api/templates?modelType=${modelType}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTemplates(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch templates:", error);
+      }
+      setSelectedTemplate("");
+    };
+    fetchTemplates();
+  }, [modelType]);
+
+  const handleTemplateSelect = async (name: string) => {
+    setSelectedTemplate(name);
+    setTemplateLoading(true);
+    try {
+      const res = await fetch(`/api/templates/${name}?projectId=${projectId}&modelType=${modelType}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.values && Object.keys(data.values).length > 0) {
+          setParamValues((prev) => ({ ...prev, ...data.values }));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to apply template:", error);
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
 
   const fetchHistories = useCallback(async () => {
     setHistoryLoading(true);
@@ -304,6 +352,30 @@ export default function ProjectPage() {
               </CardContent>
             </Card>
 
+            {/* 템플릿 파라미터 */}
+            {templates.length > 0 && (
+              <Card>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    템플릿 파라미터
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Select value={selectedTemplate} onValueChange={handleTemplateSelect} disabled={templateLoading}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="템플릿을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((t) => (
+                        <SelectItem key={t.name} value={t.name}>{t.displayName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+            )}
+
             {/* 입력 이미지 */}
             <Card>
               <CardHeader className="py-3">
@@ -363,7 +435,7 @@ export default function ProjectPage() {
           <div className="space-y-4">
             {/* 생성 버튼 + 비교 모드 토글 */}
             <div className="flex gap-2">
-              <Button className="flex-1" size="lg" onClick={handleGenerate} disabled={generating || compareMode}>
+              <Button className="flex-1" size="lg" onClick={handleGenerate} disabled={generating || compareMode || !inputImage}>
                 {generating ? (
                   <><Loader2 className="h-5 w-5 mr-2 animate-spin" />생성 중...</>
                 ) : (
