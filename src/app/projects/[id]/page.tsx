@@ -103,7 +103,7 @@ export default function ProjectPage() {
 
   // --- Handlers ---
   const handleGenerate = async () => {
-    if (!project) return;
+    if (!project || generateMutation.isPending) return;
     const workflow = store.modelType === "sdxl" ? project.sdxlWorkflow : project.sd15Workflow;
     if (!workflow) {
       alert(`${store.modelType.toUpperCase()} 워크플로우가 설정되지 않았습니다.`);
@@ -177,7 +177,7 @@ export default function ProjectPage() {
 
           {/* 오른쪽: 결과 */}
           <div className="space-y-4">
-            <GenerateActions onGenerate={handleGenerate} />
+            <GenerateActions onGenerate={handleGenerate} isPending={generateMutation.isPending} />
             <ResultViewer project={project} histories={histories} />
             <HistoryList
               project={project}

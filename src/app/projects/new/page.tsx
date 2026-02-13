@@ -15,7 +15,7 @@ export default function NewProjectPage() {
   const createProject = useCreateProject();
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || createProject.isPending) return;
 
     try {
       const project = await createProject.mutateAsync({ name: name.trim() });

@@ -29,6 +29,7 @@ export default function ProjectSettingsPage() {
   }, [project]);
 
   const handleSave = async () => {
+    if (updateProject.isPending) return;
     try {
       await updateProject.mutateAsync({ id: projectId, data: { name } });
       router.push(`/projects/${projectId}`);
@@ -38,6 +39,7 @@ export default function ProjectSettingsPage() {
   };
 
   const handleDelete = async () => {
+    if (deleteProjectMutation.isPending) return;
     try {
       await deleteProjectMutation.mutateAsync(projectId);
       router.push("/projects");
@@ -138,8 +140,8 @@ export default function ProjectSettingsPage() {
                   삭제됩니다. 이 작업은 되돌릴 수 없습니다.
                 </p>
                 <div className="flex gap-2">
-                  <Button variant="destructive" onClick={handleDelete}>
-                    삭제 확인
+                  <Button variant="destructive" onClick={handleDelete} disabled={deleteProjectMutation.isPending}>
+                    {deleteProjectMutation.isPending ? "삭제 중..." : "삭제 확인"}
                   </Button>
                   <Button
                     variant="outline"

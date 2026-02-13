@@ -6,11 +6,14 @@ import { useProjectPageStore } from "@/stores/useProjectPageStore";
 
 interface GenerateActionsProps {
   onGenerate: () => void;
+  isPending?: boolean;
 }
 
-export function GenerateActions({ onGenerate }: GenerateActionsProps) {
+export function GenerateActions({ onGenerate, isPending }: GenerateActionsProps) {
   const { generating, compareMode, inputImage, enterCompareMode, exitCompareMode } =
     useProjectPageStore();
+
+  const isProcessing = generating || isPending;
 
   return (
     <div className="flex gap-2">
@@ -18,9 +21,9 @@ export function GenerateActions({ onGenerate }: GenerateActionsProps) {
         className="flex-1"
         size="lg"
         onClick={onGenerate}
-        disabled={generating || compareMode || !inputImage}
+        disabled={isProcessing || compareMode || !inputImage}
       >
-        {generating ? (
+        {isProcessing ? (
           <>
             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             생성 중...
