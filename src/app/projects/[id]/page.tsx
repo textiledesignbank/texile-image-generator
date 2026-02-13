@@ -2,10 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Settings } from "lucide-react";
-import { useProject, useHistories, useHistoryPolling } from "@/hooks/queries";
+import { useProject, useHistories, useHistoryPolling, historyKeys } from "@/hooks/queries";
 import { useGenerate } from "@/hooks/mutations";
 import { useProjectPageStore } from "@/stores/useProjectPageStore";
 import { ModelSelector } from "@/components/generation/ModelSelector";
@@ -21,6 +22,7 @@ export default function ProjectPage() {
   const router = useRouter();
   const projectId = params.id as string;
 
+  const queryClient = useQueryClient();
   const store = useProjectPageStore();
   const prevHistoriesLenRef = useRef<number | null>(null);
 
@@ -75,11 +77,14 @@ export default function ProjectPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [histories.length]);
 
-  // 4. Polling completion: stop generating, apply params
+  // 4. Polling completion: stop generating, apply params, refresh histories
   useEffect(() => {
     if (!polledHistory) return;
-    if (polledHistory.status === "completed" || polledHistory.status === "failed") {
+    if (polledHistory.status === "completed" || polledHistory.status === "failed" || polledHistory.status === "cancelled") {
       store.stopGenerating();
+      queryClient.invalidateQueries({
+        queryKey: historyKeys.list({ projectId, pageSize: 20 }),
+      });
       if (polledHistory.status === "completed") {
         if (polledHistory.params) {
           store.setParamValues(polledHistory.params as Record<string, unknown>);
