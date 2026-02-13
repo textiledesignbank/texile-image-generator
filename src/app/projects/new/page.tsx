@@ -7,33 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Plus } from "lucide-react";
+import { useCreateProject } from "@/hooks/mutations";
 
 export default function NewProjectPage() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [creating, setCreating] = useState(false);
+  const createProject = useCreateProject();
 
   const handleCreate = async () => {
     if (!name.trim()) return;
 
-    setCreating(true);
     try {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-        }),
-      });
-
-      if (res.ok) {
-        const project = await res.json();
-        router.push(`/projects/${project.id}`);
-      }
+      const project = await createProject.mutateAsync({ name: name.trim() });
+      router.push(`/projects/${project.id}`);
     } catch (error) {
       console.error("Failed to create project:", error);
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -73,10 +61,10 @@ export default function NewProjectPage() {
           <Button
             className="w-full"
             onClick={handleCreate}
-            disabled={!name.trim() || creating}
+            disabled={!name.trim() || createProject.isPending}
           >
             <Plus className="h-4 w-4 mr-2" />
-            {creating ? "생성 중..." : "프로젝트 생성"}
+            {createProject.isPending ? "생성 중..." : "프로젝트 생성"}
           </Button>
         </CardContent>
       </Card>

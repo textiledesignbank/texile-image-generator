@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,69 +13,38 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Plus, FolderOpen, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
-import type { Project, PaginatedResponse } from "@/types";
+import { useProjects } from "@/hooks/queries";
+import { useProjectsListStore } from "@/stores/useProjectsListStore";
 
 const PAGE_SIZE = 10;
 
 type SortBy = "lastTestAt" | "historyCount";
-type SortOrder = "asc" | "desc";
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [sortBy, setSortBy] = useState<SortBy>("lastTestAt");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchProjects = useCallback(async (p: number, sb: SortBy, so: SortOrder, q: string) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(p),
-        pageSize: String(PAGE_SIZE),
-        sortBy: sb,
-        sortOrder: so,
-      });
-      if (q) params.set("search", q);
-      const res = await fetch(`/api/projects?${params}`);
-      const data: PaginatedResponse<Project> = await res.json();
-      setProjects(data.data);
-      setTotalPages(data.totalPages);
-      setTotal(data.total);
-    } catch (error) {
-      console.error("Failed to fetch projects:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { page, sortBy, sortOrder, search, searchInput, setPage, toggleSort, setSearch, setSearchInput } =
+    useProjectsListStore();
 
-  useEffect(() => {
-    fetchProjects(page, sortBy, sortOrder, search);
-  }, [page, sortBy, sortOrder, search, fetchProjects]);
+  const { data, isLoading } = useProjects({
+    page,
+    pageSize: PAGE_SIZE,
+    sortBy,
+    sortOrder,
+    search: search || undefined,
+  });
+
+  const projects = data?.data ?? [];
+  const totalPages = data?.totalPages ?? 1;
+  const total = data?.total ?? 0;
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
       setSearch(value);
-      setPage(1);
     }, 300);
-  };
-
-  const handleSort = (column: SortBy) => {
-    if (sortBy === column) {
-      setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
-    } else {
-      setSortBy(column);
-      setSortOrder("desc");
-    }
-    setPage(1);
   };
 
   const SortIcon = ({ column }: { column: SortBy }) => {
@@ -85,7 +54,7 @@ export default function ProjectsPage() {
       : <ArrowUp className="h-3 w-3 ml-1" />;
   };
 
-  if (loading && projects.length === 0) {
+  if (isLoading && projects.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">로딩 중...</div>
     );
@@ -117,7 +86,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {total === 0 && !loading && !search ? (
+      {total === 0 && !isLoading && !search ? (
         <div className="text-center py-12">
           <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
           {search ? (
@@ -146,7 +115,7 @@ export default function ProjectsPage() {
                   <TableHead>모델</TableHead>
                   <TableHead
                     className="text-center cursor-pointer select-none hover:bg-muted/50"
-                    onClick={() => handleSort("historyCount")}
+                    onClick={() => toggleSort("historyCount")}
                   >
                     <div className="flex items-center justify-center">
                       테스트 수
@@ -155,7 +124,7 @@ export default function ProjectsPage() {
                   </TableHead>
                   <TableHead
                     className="text-right cursor-pointer select-none hover:bg-muted/50"
-                    onClick={() => handleSort("lastTestAt")}
+                    onClick={() => toggleSort("lastTestAt")}
                   >
                     <div className="flex items-center justify-end">
                       최근 테스트
@@ -218,8 +187,8 @@ export default function ProjectsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage((p) => p - 1)}
-                  disabled={page <= 1 || loading}
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1 || isLoading}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -229,8 +198,8 @@ export default function ProjectsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={page >= totalPages || loading}
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= totalPages || isLoading}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>

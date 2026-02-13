@@ -36,6 +36,7 @@ ComfyUI 워크플로우 기반 이미지 생성 시스템입니다. 프로젝트
 ## 기술 스택
 
 - **Frontend**: Next.js 15, React 18, TypeScript
+- **상태관리**: Zustand (클라이언트 상태), TanStack React Query (서버 상태)
 - **UI**: Tailwind CSS, shadcn/ui, Radix UI
 - **Database**: MySQL (AWS RDS), Prisma ORM
 - **Cloud**: AWS S3 (이미지 저장), AWS SQS FIFO (작업 큐)
@@ -80,47 +81,80 @@ npm run build
 npm run start
 ```
 
+## 아키텍처
+
+### 상태관리 전략
+
+- **서버 상태 (React Query)**: 프로젝트, 히스토리, 템플릿 등 API 데이터. 자동 캐싱, 무효화, 폴링 지원
+- **클라이언트 상태 (Zustand)**: 모델 선택, 파라미터 값, 비교 모드 등 UI 상태. 복잡한 페이지에만 사용
+- **로컬 상태 (useState)**: 폼 입력 등 단순한 컴포넌트 로컬 상태
+
+### 주요 패턴
+
+- `src/lib/api.ts` - 모든 fetch 호출 중앙화
+- `src/hooks/queries/` - React Query 쿼리 훅 + 키 팩토리
+- `src/hooks/mutations/` - React Query 뮤테이션 훅 + 캐시 무효화
+- `src/stores/` - Zustand 스토어 (복잡한 페이지 전용)
+- `src/components/generation/` - ProjectPage에서 추출된 컴포넌트
+
 ## 프로젝트 구조
 
 ```
 ├── prisma/
-│   └── schema.prisma        # 데이터베이스 스키마
-├── workflows/               # ComfyUI 워크플로우 JSON 파일
-│   ├── animal.json, floral.json, geometric.json, ...
-│   └── upscale.json
+│   └── schema.prisma            # 데이터베이스 스키마
+├── workflows/                   # ComfyUI 워크플로우 JSON 파일
 ├── src/
-│   ├── middleware.ts         # JWT 인증 미들웨어
+│   ├── middleware.ts             # JWT 인증 미들웨어
 │   ├── app/
-│   │   ├── page.tsx         # 루트 (→ /projects 리다이렉트)
-│   │   ├── layout.tsx       # 루트 레이아웃
-│   │   ├── api/
-│   │   │   ├── auth/        # 인증 API (login, logout)
-│   │   │   ├── generate/    # 이미지 생성 API
-│   │   │   ├── history/     # 히스토리 API
-│   │   │   └── projects/    # 프로젝트 API
-│   │   ├── login/           # 로그인 페이지
+│   │   ├── page.tsx             # 루트 (→ /projects 리다이렉트)
+│   │   ├── layout.tsx           # 루트 레이아웃 (QueryProvider 포함)
+│   │   ├── api/                 # API 라우트 (auth, generate, history, projects, templates)
+│   │   ├── login/               # 로그인 페이지
 │   │   └── projects/
-│   │       ├── page.tsx     # 프로젝트 목록
-│   │       ├── new/         # 새 프로젝트 생성
+│   │       ├── page.tsx         # 프로젝트 목록 (React Query + Zustand)
+│   │       ├── new/             # 새 프로젝트 생성 (mutation 사용)
 │   │       └── [id]/
-│   │           ├── page.tsx     # 이미지 생성 페이지
-│   │           └── settings/    # 프로젝트 설정
+│   │           ├── page.tsx     # 이미지 생성 페이지 (오케스트레이터)
+│   │           └── settings/    # 프로젝트 설정 (query + mutations)
 │   ├── components/
-│   │   ├── ui/              # shadcn/ui 컴포넌트
-│   │   ├── layout/
-│   │   │   └── Header.tsx   # 헤더 (로그아웃 포함)
+│   │   ├── generation/          # ProjectPage에서 추출된 컴포넌트
+│   │   │   ├── ModelSelector.tsx
+│   │   │   ├── TemplateSelector.tsx
+│   │   │   ├── ImageUploader.tsx
+│   │   │   ├── ParamSettingsPanel.tsx
+│   │   │   ├── GenerateActions.tsx
+│   │   │   ├── ResultViewer.tsx
+│   │   │   ├── ComparePanel.tsx
+│   │   │   ├── GenerationResult.tsx
+│   │   │   └── HistoryList.tsx
+│   │   ├── ui/                  # shadcn/ui 컴포넌트
+│   │   ├── layout/Header.tsx    # 헤더 (로그아웃 포함)
 │   │   └── workflow/
-│   │       ├── ParamEditor.tsx    # 파라미터 편집기
-│   │       └── ParamDisplay.tsx   # 파라미터 표시 (비교 지원)
+│   │       ├── ParamEditor.tsx  # 파라미터 편집기
+│   │       └── ParamDisplay.tsx # 파라미터 표시 (비교 지원)
+│   ├── hooks/
+│   │   ├── queries/             # React Query 쿼리 훅
+│   │   │   ├── useProjects.ts, useProject.ts, useHistories.ts, useTemplates.ts
+│   │   │   └── index.ts
+│   │   └── mutations/           # React Query 뮤테이션 훅
+│   │       ├── useCreateProject.ts, useUpdateProject.ts, useDeleteProject.ts
+│   │       ├── useGenerate.ts, useApplyTemplate.ts
+│   │       └── index.ts
+│   ├── stores/
+│   │   ├── useProjectPageStore.ts   # ProjectPage UI 상태 (Zustand)
+│   │   └── useProjectsListStore.ts  # ProjectsPage 페이지네이션/정렬 (Zustand)
+│   ├── providers/
+│   │   └── QueryProvider.tsx    # React Query Provider
 │   ├── lib/
-│   │   ├── auth.ts          # JWT 인증 (토큰 생성/검증, 쿠키 관리)
-│   │   ├── db.ts            # Prisma 클라이언트
-│   │   ├── s3.ts            # S3 클라이언트
-│   │   ├── sqs.ts           # SQS 클라이언트
-│   │   ├── utils.ts         # Tailwind 유틸리티 (cn)
+│   │   ├── api.ts               # 중앙 API 서비스 레이어
+│   │   ├── auth.ts              # JWT 인증
+│   │   ├── db.ts                # Prisma 클라이언트
+│   │   ├── s3.ts                # S3 클라이언트
+│   │   ├── sqs.ts               # SQS 클라이언트
+│   │   ├── utils.ts             # Tailwind 유틸리티 (cn)
 │   │   └── workflow-parser.ts   # 워크플로우 파서
 │   └── types/
-│       └── index.ts         # TypeScript 타입 정의
+│       └── index.ts             # TypeScript 타입 정의
 ```
 
 ## 데이터 모델

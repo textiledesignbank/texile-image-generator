@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Lock } from "lucide-react";
+import { login } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,21 +22,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (res.ok) {
-        router.push("/");
-        router.refresh();
-      } else {
-        const data = await res.json();
-        setError(data.error || "로그인에 실패했습니다");
-      }
-    } catch {
-      setError("네트워크 오류가 발생했습니다");
+      await login(username, password);
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "로그인에 실패했습니다");
     } finally {
       setLoading(false);
     }

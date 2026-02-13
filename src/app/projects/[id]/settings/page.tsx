@@ -7,80 +7,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, Trash2, AlertTriangle } from "lucide-react";
-import type { Project } from "@/types";
+import { useProject } from "@/hooks/queries";
+import { useUpdateProject, useDeleteProject } from "@/hooks/mutations";
 
 export default function ProjectSettingsPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { data: project, isLoading } = useProject(projectId);
+  const updateProject = useUpdateProject();
+  const deleteProjectMutation = useDeleteProject();
 
-  // 수정 가능한 필드
   const [name, setName] = useState("");
-
-  // 삭제 확인
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
-    const fetchProject = async () => {
-      try {
-        const res = await fetch(`/api/projects/${projectId}`);
-        if (res.ok) {
-          const data: Project = await res.json();
-          setProject(data);
-          setName(data.name);
-        }
-      } catch (error) {
-        console.error("Failed to fetch project:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProject();
-  }, [projectId]);
+    if (project) {
+      setName(project.name);
+    }
+  }, [project]);
 
   const handleSave = async () => {
-    setSaving(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-
-      if (res.ok) {
-        router.push(`/projects/${projectId}`);
-      } else {
-        alert("저장 실패");
-      }
-    } catch (error) {
-      console.error("Failed to save:", error);
-    } finally {
-      setSaving(false);
+      await updateProject.mutateAsync({ id: projectId, data: { name } });
+      router.push(`/projects/${projectId}`);
+    } catch {
+      alert("저장 실패");
     }
   };
 
   const handleDelete = async () => {
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        router.push("/projects");
-      } else {
-        alert("삭제 실패");
-      }
-    } catch (error) {
-      console.error("Failed to delete:", error);
+      await deleteProjectMutation.mutateAsync(projectId);
+      router.push("/projects");
+    } catch {
+      alert("삭제 실패");
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">로딩 중...</div>
     );
@@ -109,9 +75,9 @@ export default function ProjectSettingsPage() {
           <h1 className="text-2xl font-bold">프로젝트 설정</h1>
           <p className="text-sm text-muted-foreground">{project.name}</p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={updateProject.isPending}>
           <Save className="h-4 w-4 mr-2" />
-          {saving ? "저장 중..." : "저장"}
+          {updateProject.isPending ? "저장 중..." : "저장"}
         </Button>
       </div>
 
