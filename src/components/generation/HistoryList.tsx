@@ -90,6 +90,11 @@ export function HistoryList({ project, histories, isLoading }: HistoryListProps)
                 const isCompareLeft = compareLeftId === history.id;
                 const isCompareRight = compareRightId === history.id;
 
+                // 썸네일 우선, 없으면 원본 fallback
+                const thumbUrl =
+                  (history.outputThumbnailUrls as string[] | undefined)?.[0] ||
+                  (history.outputImageUrls as string[] | undefined)?.[0];
+
                 return (
                   <div
                     key={history.id}
@@ -115,9 +120,9 @@ export function HistoryList({ project, histories, isLoading }: HistoryListProps)
                   >
                     <div className="flex gap-2">
                       <div className="w-14 h-14 flex-shrink-0 bg-muted rounded overflow-hidden">
-                        {history.status === "completed" && history.outputImageUrls ? (
+                        {history.status === "completed" && thumbUrl ? (
                           <img
-                            src={(history.outputImageUrls as string[])[0]}
+                            src={thumbUrl}
                             alt="Result"
                             className="w-full h-full object-cover"
                           />

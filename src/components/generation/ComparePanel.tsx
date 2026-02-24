@@ -12,6 +12,13 @@ interface ComparePanelProps {
   histories: TestHistory[];
 }
 
+/** 썸네일 우선, 없으면 원본 fallback */
+function getDisplayUrl(history: TestHistory): string | null {
+  const thumbs = history.outputThumbnailUrls as string[] | undefined;
+  const originals = history.outputImageUrls as string[] | undefined;
+  return thumbs?.[0] || originals?.[0] || null;
+}
+
 export function ComparePanel({ project, histories }: ComparePanelProps) {
   const { compareMode, compareLeftId, compareRightId, exitCompareMode } =
     useProjectPageStore();
@@ -62,7 +69,7 @@ export function ComparePanel({ project, histories }: ComparePanelProps) {
                 </p>
                 {compareLeft.outputImageUrls && (
                   <img
-                    src={(compareLeft.outputImageUrls as string[])[0]}
+                    src={getDisplayUrl(compareLeft) || ""}
                     alt="Left"
                     className="w-full rounded-md"
                   />
@@ -74,7 +81,7 @@ export function ComparePanel({ project, histories }: ComparePanelProps) {
                 </p>
                 {compareRight.outputImageUrls && (
                   <img
-                    src={(compareRight.outputImageUrls as string[])[0]}
+                    src={getDisplayUrl(compareRight) || ""}
                     alt="Right"
                     className="w-full rounded-md"
                   />

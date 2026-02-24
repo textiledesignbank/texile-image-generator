@@ -41,8 +41,10 @@ export async function GET(request: NextRequest) {
       data.map(async (item) => {
         let inputImageUrl = item.inputImageUrl;
         let outputImageUrls = item.outputImageUrls as string[] | null;
+        const inputThumbnailKey = item.inputThumbnailUrl;
+        const outputThumbnailKeys = item.outputThumbnailUrls as string[] | null;
 
-        // Presigned URL 생성
+        // Presigned URL 생성: 원본
         if (inputImageUrl && !inputImageUrl.startsWith("http")) {
           inputImageUrl = await getPresignedUrl(inputImageUrl);
         }
@@ -58,10 +60,23 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Presigned URL 생성: 썸네일
+        let inputThumbnailUrl: string | null = null;
+        if (inputThumbnailKey) {
+          inputThumbnailUrl = await getPresignedUrl(inputThumbnailKey);
+        }
+
+        let outputThumbnailUrls: string[] | null = null;
+        if (outputThumbnailKeys && outputThumbnailKeys.length > 0) {
+          outputThumbnailUrls = await getPresignedUrls(outputThumbnailKeys);
+        }
+
         return {
           ...item,
           inputImageUrl,
           outputImageUrls,
+          inputThumbnailUrl,
+          outputThumbnailUrls,
         };
       }),
     );

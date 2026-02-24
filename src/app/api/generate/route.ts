@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendGenerateJob } from "@/lib/sqs";
 import { applyParamsToWorkflow } from "@/lib/workflow-parser";
+import { generateThumbnail } from "@/lib/thumbnail";
 import type { GenerateRequest, ComfyUIWorkflow, ParamConfig } from "@/types";
 
 // POST /api/generate - 이미지 생성 요청
@@ -44,6 +45,16 @@ export async function POST(request: NextRequest) {
 
     const processedWorkflow = applyParamsToWorkflow(baseWorkflow, paramConfigs, params);
 
+    // 입력 이미지 썸네일 생성
+    let inputThumbnailUrl: string | null = null;
+    if (inputImageS3Key) {
+      try {
+        inputThumbnailUrl = await generateThumbnail(inputImageS3Key);
+      } catch (e) {
+        console.error("Input thumbnail generation failed:", e);
+      }
+    }
+
     // 히스토리 레코드 생성
     const history = await prisma.testHistory.create({
       data: {
@@ -51,6 +62,7 @@ export async function POST(request: NextRequest) {
         modelType,
         params: params as object,
         inputImageUrl: inputImageS3Key || null,
+        inputThumbnailUrl,
         status: "pending",
         isSelected: false,
       },

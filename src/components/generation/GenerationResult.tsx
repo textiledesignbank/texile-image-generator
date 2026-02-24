@@ -66,6 +66,15 @@ export function GenerationResult({ project, histories }: GenerationResultProps) 
     }
   };
 
+  // 표시용: 썸네일 우선, 없으면 원본 fallback
+  const inputDisplayUrl = viewingHistory
+    ? (viewingHistory.inputThumbnailUrl || viewingHistory.inputImageUrl)
+    : null;
+
+  const outputThumbs = viewingHistory?.outputThumbnailUrls as string[] | undefined;
+  const outputOriginals = viewingHistory?.outputImageUrls as string[] | undefined;
+  const outputDisplayUrls = outputThumbs?.length ? outputThumbs : outputOriginals;
+
   return (
     <Card>
       <CardHeader className="py-3">
@@ -99,29 +108,31 @@ export function GenerationResult({ project, histories }: GenerationResultProps) 
               <p className="text-sm text-muted-foreground">생성 중...</p>
             </div>
           </div>
-        ) : viewingHistory?.outputImageUrls ? (
+        ) : viewingHistory?.outputImageUrls && outputDisplayUrls ? (
           <div className="space-y-3">
-            {viewingHistory.inputImageUrl ? (
+            {inputDisplayUrl ? (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1 text-center">Input</p>
                   <div className="relative group">
                     <img
-                      src={viewingHistory.inputImageUrl}
+                      src={inputDisplayUrl}
                       alt="Input"
                       className="w-full rounded-md bg-muted"
                     />
-                    <DownloadButton
-                      url={viewingHistory.inputImageUrl}
-                      fileName={`input-${viewingHistory.id}.png`}
-                    />
+                    {viewingHistory.inputImageUrl && (
+                      <DownloadButton
+                        url={viewingHistory.inputImageUrl}
+                        fileName={`input-${viewingHistory.id}.png`}
+                      />
+                    )}
                   </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1 text-center">Output</p>
                   <div className="relative group">
                     <img
-                      src={(viewingHistory.outputImageUrls as string[])[0]}
+                      src={outputDisplayUrls[0]}
                       alt="Output"
                       className="w-full rounded-md"
                     />
@@ -134,11 +145,11 @@ export function GenerationResult({ project, histories }: GenerationResultProps) 
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
-                {(viewingHistory.outputImageUrls as string[]).map((url, idx) => (
+                {outputDisplayUrls.map((url, idx) => (
                   <div key={idx} className="relative group">
                     <img src={url} alt={`Output ${idx + 1}`} className="w-full rounded-md" />
                     <DownloadButton
-                      url={url}
+                      url={(viewingHistory.outputImageUrls as string[])[idx]}
                       fileName={`output-${viewingHistory.id}-${idx + 1}.png`}
                     />
                   </div>

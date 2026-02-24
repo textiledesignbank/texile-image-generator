@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getPresignedUrl, getPresignedUrls, deleteObjects } from "@/lib/s3";
+import { generateThumbnail, generateThumbnails } from "@/lib/thumbnail";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -25,9 +26,51 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // S3 URL 변환
+    // 출력 이미지 썸네일 lazy 생성 (completed 상태이고 아직 미생성인 경우)
+    let outputThumbnailKeys = history.outputThumbnailUrls as string[] | null;
+    const outputS3Keys = history.outputImageUrls as string[] | null;
+
+    if (
+      history.status === "completed" &&
+      !outputThumbnailKeys &&
+      outputS3Keys &&
+      outputS3Keys.length > 0
+    ) {
+      const s3Keys = outputS3Keys.filter((url) => !url.startsWith("http"));
+      if (s3Keys.length > 0) {
+        try {
+          outputThumbnailKeys = await generateThumbnails(s3Keys);
+          await prisma.testHistory.update({
+            where: { id },
+            data: { outputThumbnailUrls: outputThumbnailKeys },
+          });
+        } catch (e) {
+          console.error("Output thumbnail generation failed:", e);
+        }
+      }
+    }
+
+    // 입력 이미지 썸네일 lazy 생성 (아직 미생성인 경우)
+    let inputThumbnailKey = history.inputThumbnailUrl;
+    if (
+      !inputThumbnailKey &&
+      history.inputImageUrl &&
+      !history.inputImageUrl.startsWith("http")
+    ) {
+      try {
+        inputThumbnailKey = await generateThumbnail(history.inputImageUrl);
+        await prisma.testHistory.update({
+          where: { id },
+          data: { inputThumbnailUrl: inputThumbnailKey },
+        });
+      } catch (e) {
+        console.error("Input thumbnail generation failed:", e);
+      }
+    }
+
+    // Presigned URL 변환: 원본
     let inputImageUrl = history.inputImageUrl;
-    let outputImageUrls = history.outputImageUrls as string[] | null;
+    let outputImageUrls = outputS3Keys;
 
     if (inputImageUrl && !inputImageUrl.startsWith("http")) {
       inputImageUrl = await getPresignedUrl(inputImageUrl);
@@ -40,10 +83,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // Presigned URL 변환: 썸네일
+    let inputThumbnailUrl: string | null = null;
+    if (inputThumbnailKey) {
+      inputThumbnailUrl = await getPresignedUrl(inputThumbnailKey);
+    }
+
+    let outputThumbnailUrls: string[] | null = null;
+    if (outputThumbnailKeys && outputThumbnailKeys.length > 0) {
+      outputThumbnailUrls = await getPresignedUrls(outputThumbnailKeys);
+    }
+
     return NextResponse.json({
       ...history,
       inputImageUrl,
       outputImageUrls,
+      inputThumbnailUrl,
+      outputThumbnailUrls,
     });
   } catch (error) {
     console.error("Error fetching history:", error);
@@ -124,12 +180,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // completed/failed/cancelled 상태면 실제 삭제
-    // S3 이미지 삭제
+    // S3 이미지 삭제 (원본 + 썸네일)
     const s3KeysToDelete: string[] = [];
 
     // 입력 이미지 (S3 키인 경우만)
     if (history.inputImageUrl && !history.inputImageUrl.startsWith("http")) {
       s3KeysToDelete.push(history.inputImageUrl);
+    }
+
+    // 입력 썸네일
+    if (history.inputThumbnailUrl) {
+      s3KeysToDelete.push(history.inputThumbnailUrl);
     }
 
     // 출력 이미지들 (S3 키인 경우만)
@@ -140,6 +201,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
           s3KeysToDelete.push(url);
         }
       }
+    }
+
+    // 출력 썸네일들
+    const outputThumbs = history.outputThumbnailUrls as string[] | null;
+    if (outputThumbs) {
+      s3KeysToDelete.push(...outputThumbs);
     }
 
     // S3 삭제 (실패해도 DB는 삭제)

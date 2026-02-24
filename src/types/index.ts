@@ -65,6 +65,8 @@ export interface TestHistory {
   params: Record<string, unknown>;
   inputImageUrl: string | null;
   outputImageUrls: string[] | null;
+  inputThumbnailUrl?: string | null;
+  outputThumbnailUrls?: string[] | null;
   status: JobStatus;
   jobId: string | null;
   errorMessage: string | null;

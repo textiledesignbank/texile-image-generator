@@ -28,6 +28,29 @@ model Project {
   @@map("projects")
 }
 
+// 다른 애플리케이션에서 사용 중 - 절대 수정/삭제 금지
+model AnalysisResult {
+  id           Int       @id @default(autoincrement())
+  filename     String    @db.VarChar(500)
+  imageHash    String?   @map("image_hash") @db.VarChar(64)
+  imageUrl     String?   @map("image_url") @db.VarChar(1000)
+  model        String    @db.VarChar(100)
+  resolution   String    @db.VarChar(50)
+  success      Boolean
+  metadata     String?   @db.LongText
+  costUsd      Float?    @map("cost_usd") @db.Float
+  costKrw      Float?    @map("cost_krw") @db.Float
+  elapsedTime  Float?    @map("elapsed_time") @db.Float
+  error        String?   @db.Text
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@index([createdAt], map: "idx_created_at")
+  @@index([filename], map: "idx_filename")
+  @@index([imageHash], map: "idx_image_hash")
+  @@index([model], map: "idx_model")
+  @@map("analysis_results")
+}
+
 // 워크플로우 템플릿
 model WorkflowTemplate {
   id             String   @id @default(uuid())
@@ -47,9 +70,11 @@ model TestHistory {
   projectId       String    @map("project_id")
   modelType       String    @map("model_type") @db.VarChar(10)  // sdxl / sd15
   params          Json
-  inputImageUrl   String?   @map("input_image_url") @db.VarChar(500)
-  outputImageUrls Json?     @map("output_image_urls")
-  status          String    @default("pending") @db.VarChar(20)
+  inputImageUrl       String?   @map("input_image_url") @db.VarChar(500)
+  outputImageUrls     Json?     @map("output_image_urls")
+  inputThumbnailUrl   String?   @map("input_thumbnail_url") @db.VarChar(500)
+  outputThumbnailUrls Json?     @map("output_thumbnail_urls")
+  status              String    @default("pending") @db.VarChar(20)
   jobId           String?   @map("job_id") @db.VarChar(100)
   errorMessage    String?   @map("error_message") @db.Text
   isSelected      Boolean   @default(false) @map("is_selected")

@@ -6,7 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const s3Client = new S3Client({
+export const s3Client = new S3Client({
   region: process.env.AWS_REGION || "ap-northeast-2",
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -14,7 +14,7 @@ const s3Client = new S3Client({
   },
 });
 
-const bucketName = process.env.S3_BUCKET_NAME || "dev-tdb-storage";
+export const bucketName = process.env.S3_BUCKET_NAME || "dev-tdb-storage";
 const storagePath = process.env.S3_STORAGE_PATH || "tdb/storage/uploads";
 
 // 이미지 업로드 (Base64)
