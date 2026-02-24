@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, Loader2 } from "lucide-react";
+import { Image as ImageIcon, Loader2, Download } from "lucide-react";
 import { ParamDisplay } from "@/components/workflow/ParamDisplay";
 import { useProjectPageStore } from "@/stores/useProjectPageStore";
 import type { Project, TestHistory } from "@/types";
@@ -10,6 +10,39 @@ import type { Project, TestHistory } from "@/types";
 interface GenerationResultProps {
   project: Project;
   histories: TestHistory[];
+}
+
+async function downloadImage(url: string, fileName: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    console.error("Download failed");
+  }
+}
+
+function DownloadButton({ url, fileName }: { url: string; fileName: string }) {
+  return (
+    <Button
+      variant="secondary"
+      size="icon"
+      className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+      onClick={(e) => {
+        e.stopPropagation();
+        downloadImage(url, fileName);
+      }}
+    >
+      <Download className="h-4 w-4" />
+    </Button>
+  );
 }
 
 export function GenerationResult({ project, histories }: GenerationResultProps) {
@@ -72,25 +105,43 @@ export function GenerationResult({ project, histories }: GenerationResultProps) 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1 text-center">Input</p>
-                  <img
-                    src={viewingHistory.inputImageUrl}
-                    alt="Input"
-                    className="w-full rounded-md bg-muted"
-                  />
+                  <div className="relative group">
+                    <img
+                      src={viewingHistory.inputImageUrl}
+                      alt="Input"
+                      className="w-full rounded-md bg-muted"
+                    />
+                    <DownloadButton
+                      url={viewingHistory.inputImageUrl}
+                      fileName={`input-${viewingHistory.id}.png`}
+                    />
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1 text-center">Output</p>
-                  <img
-                    src={(viewingHistory.outputImageUrls as string[])[0]}
-                    alt="Output"
-                    className="w-full rounded-md"
-                  />
+                  <div className="relative group">
+                    <img
+                      src={(viewingHistory.outputImageUrls as string[])[0]}
+                      alt="Output"
+                      className="w-full rounded-md"
+                    />
+                    <DownloadButton
+                      url={(viewingHistory.outputImageUrls as string[])[0]}
+                      fileName={`output-${viewingHistory.id}.png`}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {(viewingHistory.outputImageUrls as string[]).map((url, idx) => (
-                  <img key={idx} src={url} alt={`Output ${idx + 1}`} className="w-full rounded-md" />
+                  <div key={idx} className="relative group">
+                    <img src={url} alt={`Output ${idx + 1}`} className="w-full rounded-md" />
+                    <DownloadButton
+                      url={url}
+                      fileName={`output-${viewingHistory.id}-${idx + 1}.png`}
+                    />
+                  </div>
                 ))}
               </div>
             )}

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendGenerateJob } from "@/lib/sqs";
-import { uploadBase64Image } from "@/lib/s3";
 import { applyParamsToWorkflow } from "@/lib/workflow-parser";
 import type { GenerateRequest, ComfyUIWorkflow, ParamConfig } from "@/types";
 
@@ -9,7 +8,7 @@ import type { GenerateRequest, ComfyUIWorkflow, ParamConfig } from "@/types";
 export async function POST(request: NextRequest) {
   try {
     const body: GenerateRequest = await request.json();
-    const { projectId, modelType, params, inputImageBase64 } = body;
+    const { projectId, modelType, params, inputImageS3Key } = body;
 
     // 프로젝트 조회
     const project = await prisma.project.findUnique({
@@ -37,17 +36,6 @@ export async function POST(request: NextRequest) {
         { error: `${modelType.toUpperCase()} workflow not configured for this project` },
         { status: 400 }
       );
-    }
-
-    // 입력 이미지 S3 업로드 (있는 경우)
-    let inputImageS3Key: string | undefined;
-    console.log(`[Generate] inputImageBase64 exists: ${!!inputImageBase64}, length: ${inputImageBase64?.length || 0}`);
-    if (inputImageBase64) {
-      inputImageS3Key = await uploadBase64Image(
-        inputImageBase64,
-        `input-${Date.now()}.png`
-      );
-      console.log(`[Generate] Uploaded to S3: ${inputImageS3Key}`);
     }
 
     // 파라미터 적용

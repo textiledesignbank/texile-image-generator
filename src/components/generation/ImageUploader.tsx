@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, X } from "lucide-react";
@@ -8,17 +8,41 @@ import { useProjectPageStore } from "@/stores/useProjectPageStore";
 
 export function ImageUploader() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { inputImagePreview, setInputImage, clearInputImage } = useProjectPageStore();
+  const { inputImagePreview, setInputImage, clearInputImage } =
+    useProjectPageStore();
+
+  // cleanup objectURL on unmount
+  useEffect(() => {
+    return () => {
+      if (inputImagePreview && inputImagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(inputImagePreview);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setInputImage(base64, base64);
-    };
-    reader.readAsDataURL(file);
+    if (file.size > MAX_FILE_SIZE) {
+      alert("50MB 이하의 이미지만 업로드할 수 있습니다.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    const preview = URL.createObjectURL(file);
+    setInputImage(file, preview);
+  };
+
+  const handleClear = () => {
+    if (inputImagePreview && inputImagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(inputImagePreview);
+    }
+    clearInputImage();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -48,7 +72,7 @@ export function ImageUploader() {
               variant="destructive"
               size="icon"
               className="absolute top-2 right-2 h-7 w-7"
-              onClick={clearInputImage}
+              onClick={handleClear}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -61,7 +85,12 @@ export function ImageUploader() {
           >
             <div className="text-center">
               <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">클릭하여 업로드</span>
+              <span className="text-sm text-muted-foreground">
+                클릭하여 업로드
+              </span>
+              <span className="text-[10px] text-muted-foreground/60 block mt-1">
+                최대 50MB이하 이미지만 가능
+              </span>
             </div>
           </Button>
         )}

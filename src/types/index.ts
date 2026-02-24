@@ -104,7 +104,7 @@ export interface GenerateRequest {
   projectId: string;
   modelType: ModelType;
   params: Record<string, unknown>;
-  inputImageBase64?: string;
+  inputImageS3Key?: string;
 }
 
 // 이미지 생성 응답

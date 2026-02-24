@@ -75,6 +75,33 @@ export function generateImage(data: GenerateRequest) {
   });
 }
 
+// --- Upload (Presigned) ---
+
+export function getPresignedUploadUrl(fileName: string, contentType: string) {
+  return apiFetch<{ uploadUrl: string; s3Key: string }>(
+    "/api/upload/presigned",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName, contentType }),
+    }
+  );
+}
+
+export async function uploadFileToS3(
+  presignedUrl: string,
+  file: File
+): Promise<void> {
+  const res = await fetch(presignedUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!res.ok) {
+    throw new Error(`S3 upload failed: ${res.status}`);
+  }
+}
+
 // --- History ---
 
 export interface FetchHistoriesParams {

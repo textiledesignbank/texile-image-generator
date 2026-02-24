@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Settings } from "lucide-react";
 import { useProject, useHistories, useHistoryPolling, historyKeys } from "@/hooks/queries";
 import { useGenerate } from "@/hooks/mutations";
+import { getPresignedUploadUrl, uploadFileToS3 } from "@/lib/api";
 import { useProjectPageStore } from "@/stores/useProjectPageStore";
 import { ModelSelector } from "@/components/generation/ModelSelector";
 import { TemplateSelector } from "@/components/generation/TemplateSelector";
@@ -115,11 +116,23 @@ export default function ProjectPage() {
       return;
     }
     try {
+      let inputImageS3Key: string | undefined;
+
+      // Presigned URL을 통해 S3에 직접 업로드
+      if (store.inputImageFile) {
+        const { uploadUrl, s3Key } = await getPresignedUploadUrl(
+          store.inputImageFile.name,
+          store.inputImageFile.type
+        );
+        await uploadFileToS3(uploadUrl, store.inputImageFile);
+        inputImageS3Key = s3Key;
+      }
+
       const result = await generateMutation.mutateAsync({
         projectId,
         modelType: store.modelType,
         params: store.paramValues,
-        inputImageBase64: store.inputImage || undefined,
+        inputImageS3Key,
       });
       store.startGenerating(result.historyId);
     } catch {

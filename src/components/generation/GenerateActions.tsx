@@ -10,7 +10,7 @@ interface GenerateActionsProps {
 }
 
 export function GenerateActions({ onGenerate, isPending }: GenerateActionsProps) {
-  const { generating, compareMode, inputImage, enterCompareMode, exitCompareMode } =
+  const { generating, compareMode, inputImageFile, enterCompareMode, exitCompareMode } =
     useProjectPageStore();
 
   const isProcessing = generating || isPending;
@@ -21,7 +21,7 @@ export function GenerateActions({ onGenerate, isPending }: GenerateActionsProps)
         className="flex-1"
         size="lg"
         onClick={onGenerate}
-        disabled={isProcessing || compareMode || !inputImage}
+        disabled={isProcessing || compareMode || !inputImageFile}
       >
         {isProcessing ? (
           <>

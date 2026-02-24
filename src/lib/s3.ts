@@ -44,6 +44,21 @@ export async function uploadBase64Image(
   return key;
 }
 
+// Presigned PUT URL 생성 (클라이언트 직접 업로드용)
+export async function getPresignedUploadUrl(
+  key: string,
+  contentType: string,
+  expiresIn: number = 600
+): Promise<string> {
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  return await getSignedUrl(s3Client, command, { expiresIn });
+}
+
 // S3 URL 생성 (Presigned URL)
 export async function getPresignedUrl(
   key: string,

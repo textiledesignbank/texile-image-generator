@@ -14,9 +14,9 @@ interface ProjectPageState {
   initParamsFromConfig: (params: ParamConfig[] | null) => void;
 
   // Input image
-  inputImage: string | null;
+  inputImageFile: File | null;
   inputImagePreview: string | null;
-  setInputImage: (base64: string, preview: string) => void;
+  setInputImage: (file: File, preview: string) => void;
   clearInputImage: () => void;
 
   // Generation tracking
@@ -52,7 +52,7 @@ interface ProjectPageState {
 const initialState = {
   modelType: "sdxl" as ModelType,
   paramValues: {} as Record<string, unknown>,
-  inputImage: null as string | null,
+  inputImageFile: null as File | null,
   inputImagePreview: null as string | null,
   generating: false,
   currentHistoryId: null as string | null,
@@ -83,9 +83,9 @@ export const useProjectPageStore = create<ProjectPageState>((set) => ({
     set({ paramValues: values });
   },
 
-  setInputImage: (base64, preview) =>
-    set({ inputImage: base64, inputImagePreview: preview }),
-  clearInputImage: () => set({ inputImage: null, inputImagePreview: null }),
+  setInputImage: (file, preview) =>
+    set({ inputImageFile: file, inputImagePreview: preview }),
+  clearInputImage: () => set({ inputImageFile: null, inputImagePreview: null }),
 
   startGenerating: (historyId) =>
     set({ generating: true, currentHistoryId: historyId }),
