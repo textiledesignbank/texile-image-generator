@@ -23,7 +23,26 @@ export function ImageUploader() {
 
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const createThumbnail = (file: File, maxSize: number = 400): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = objectUrl;
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE) {
@@ -31,7 +50,7 @@ export function ImageUploader() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    const preview = URL.createObjectURL(file);
+    const preview = await createThumbnail(file);
     setInputImage(file, preview);
   };
 
